@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+message NewTransactionResponse {
+  string payinAddress = 1;
+  string payinExtraId = 2;
+  string refundAddress = 3;
+  string refundExtraId = 4;
+  string payoutAddress = 5;
+  string payoutExtraId = 6;
+  string currencyFrom = 7;
+  string currencyTo = 8;
+  bytes amountToProvider = 9;
+  bytes amountToWallet = 10;
+  string deviceTransactionId = 11;
+  bytes deviceTransactionIdNg = 12;
+}

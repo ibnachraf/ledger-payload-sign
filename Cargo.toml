@@ -1,0 +1,14 @@
+[package]
+name = "ledger-payload-sign"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+base64 = "0.22.1"
+prost = "0.13"
+ecdsa = { version = "0.16.0" }
+k256 = { version = "0.13.0" }
+pem = "0.8.2"
+
+[build-dependencies]
+prost-build = "0.13"
