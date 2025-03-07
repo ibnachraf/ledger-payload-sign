@@ -1,9 +1,9 @@
 use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 use ecdsa::{
-    signature::{self, Signer},
-    Signature, SigningKey,
+    signature::{Signer, Verifier},
+    Signature, SigningKey, VerifyingKey,
 };
-use k256::SecretKey;
+use k256::{SecretKey, PublicKey, pkcs8::DecodePublicKey};
 use pem::parse;
 use prost::Message;
 use std::fs;
@@ -41,8 +41,18 @@ fn main() {
     ////////// Signing ///////////
     let pem_private_key = fs::read_to_string("sample-priv-key-p8.pem").expect("file not found");
     let pem = parse(&pem_private_key).expect("Failed to parse PEM");
-
-    let secret_key = SecretKey::from_slice(&pem.contents).expect("Failed to parse secret key");
+    
+    // Extract the private key bytes from PKCS#8
+    let secret_key = if pem.tag == "PRIVATE KEY" {
+        // The private key is at a specific offset in the PKCS#8 structure
+        // We need to extract just the key material
+        let key_data = &pem.contents[pem.contents.len()-32..]; // Last 32 bytes contain the private key
+        SecretKey::from_slice(key_data)
+            .expect("Failed to parse private key bytes")
+    } else {
+        SecretKey::from_slice(&pem.contents)
+            .expect("Failed to parse raw private key")
+    };
 
     let signing_key = SigningKey::from(secret_key);
 
@@ -50,4 +60,17 @@ fn main() {
     let signature_base64url = URL_SAFE.encode(signature.to_bytes());
 
     println!("Signature {}", signature_base64url);
+
+    ////////// Verification ///////////
+    let pem_public_key = fs::read_to_string("sample-pub-key.pem").expect("public key file not found");
+    let pem = parse(&pem_public_key).expect("Failed to parse public key PEM");
+    
+    let public_key = PublicKey::from_public_key_der(&pem.contents)
+        .expect("Failed to parse public key DER");
+    let verifying_key = VerifyingKey::from(public_key);
+
+    match verifying_key.verify(&buf_transaction_payload_binary, &signature) {
+        Ok(_) => println!("Signature verification successful!"),
+        Err(e) => println!("Signature verification failed: {}", e),
+    }
 }
