@@ -9,6 +9,7 @@ prost = "0.13"
 ecdsa = { version = "0.16.0" }
 k256 = { version = "0.13.0", features = ["pkcs8"] }
 pem = "0.8.2"
+hex = "0.4.3"
 
 [build-dependencies]
 prost-build = "0.13"
