@@ -10,10 +10,15 @@ use k256::{
 };
 use pem::parse;
 use prost::Message;
-use std::fs;
+use std::{fmt::format, fs};
 
 use hex;
 
+use jws::{
+    compact::{encode, encode_sign},
+    hmac::{Hs256Signer, Hs512Signer},
+    *,
+};
 mod transaction {
     include!(concat!(env!("OUT_DIR"), "/_.rs"));
 }
@@ -43,15 +48,15 @@ fn main() {
         .encode(&mut buf_transaction_payload_binary)
         .expect("encode failed");
 
-    let base_64 = URL_SAFE.encode(&buf_transaction_payload_binary);
+    let base_64_proto_payload = URL_SAFE.encode(&buf_transaction_payload_binary);
 
-    println!("Payload {}", base_64);
+    println!("Payload: {}", base_64_proto_payload);
 
     ////////// Signing ///////////
     let pem_private_key = fs::read_to_string("sample-priv-key-p8.pem").expect("file not found");
     let pem = parse(&pem_private_key).expect("Failed to parse PEM");
 
-    let key_data = &pem.contents; // Last 32 bytes contain the private key
+    let key_data = &pem.contents;
 
     // Extract the private key bytes from PKCS#8
     let secret_key =
@@ -59,22 +64,24 @@ fn main() {
 
     let signing_key = SigningKey::from(secret_key);
 
-    let signature: Signature<_> = signing_key.sign(&buf_transaction_payload_binary);
+    let jws_body_payload = format!(".{}", base_64_proto_payload);
+
+    let signature: Signature<_> = signing_key.sign(&jws_body_payload.as_bytes());
     let signature_base64url = URL_SAFE.encode(signature.to_bytes());
 
     println!("Signature {}", signature_base64url);
 
     ////////// Verification ///////////
-    let pem_public_key =
-        fs::read_to_string("sample-pub-key.pem").expect("public key file not found");
-    let pem = parse(&pem_public_key).expect("Failed to parse public key PEM");
+    // let pem_public_key =
+    //     fs::read_to_string("sample-pub-key-secp256k1.pem").expect("public key file not found");
+    // let pem = parse(&pem_public_key).expect("Failed to parse public key PEM");
 
-    let public_key =
-        PublicKey::from_public_key_der(&pem.contents).expect("Failed to parse public key DER");
-    let verifying_key = VerifyingKey::from(public_key);
+    // let public_key =
+    //     PublicKey::from_public_key_der(&pem.contents).expect("Failed to parse public key DER");
+    // let verifying_key = VerifyingKey::from(public_key);
 
-    match verifying_key.verify(&buf_transaction_payload_binary, &signature) {
-        Ok(_) => println!("Signature verification successful!"),
-        Err(e) => println!("Signature verification failed: {}", e),
-    }
+    // match verifying_key.verify(&base_64_proto_payload.as_bytes(), &signature) {
+    //     Ok(_) => println!("Signature verification successful!"),
+    //     Err(e) => println!("Signature verification failed: {}", e),
+    // }
 }
